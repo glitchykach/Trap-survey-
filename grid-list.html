@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ساخت لیست تصویری</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#eef0fb; --bg2:#f6ecff; --panel:#ffffff; --text:#1c1a24; --muted:#7a7690;
+    --accent:#6d5bd0; --accent2:#ff7a59; --border:#e6e2f2; --box:#f1eef9;
+    --gold:#c9992e;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#131120; --bg2:#1a1430; --panel:#1f1b30; --text:#f1eef9; --muted:#9d97b5;
+      --accent:#9484f5; --accent2:#ff9376; --border:#332c4d; --box:#28223b;
+      --gold:#e0b64a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#131120; --bg2:#1a1430; --panel:#1f1b30; --text:#f1eef9; --muted:#9d97b5;
+    --accent:#9484f5; --accent2:#ff9376; --border:#332c4d; --box:#28223b;
+    --gold:#e0b64a;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+  body{
+    min-height:100%; margin:0; color:var(--text);
+    font-family:"Vazirmatn","Segoe UI",Tahoma,sans-serif;
+    display:flex; justify-content:center; padding:32px 16px 60px;
+    background:radial-gradient(1200px 500px at 50% -10%, var(--bg2), var(--bg));
+  }
+  .wrap{width:100%; max-width:620px;}
+  h1{font-size:1.05rem; font-weight:700; margin:0 0 20px; text-align:center; color:var(--muted);}
+
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:20px;
+    padding:20px; box-shadow:0 18px 40px rgba(30,20,60,.10);
+  }
+
+  #capture-area{ background:var(--panel); padding:14px 8px 4px; border-radius:14px; }
+
+  #titleBox{
+    font-size:1.5rem; font-weight:800; text-align:center; padding:6px 10px 16px;
+    outline:none; border-bottom:2px dashed var(--border); margin-bottom:18px;
+    cursor:text; color:var(--text); min-height:1.6em; line-height:1.6em;
+    word-break:break-word;
+  }
+  #titleBox:empty::before{ content:attr(data-placeholder); color:var(--muted); font-weight:600; }
+  #titleBox:focus{ border-bottom-color:var(--accent); }
+
+  .grid{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:7px;
+  }
+  @media (max-width:380px){ .grid{ gap:5px; } }
+
+  .box{
+    position:relative; aspect-ratio:1/1; background:var(--box);
+    border:1px solid var(--border); border-radius:9px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .box:hover{ box-shadow:0 4px 14px rgba(30,20,60,.12); }
+  .box:active{ transform:scale(.96); }
+  .box img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .box .plus{ font-size:1.5rem; color:var(--muted); font-weight:300; pointer-events:none; }
+  .box .rm{
+    position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+    background:rgba(0,0,0,.6); color:#fff; font-size:12px; line-height:20px; text-align:center;
+    display:none; z-index:2; cursor:pointer;
+  }
+  .box.filled .rm{ display:block; }
+  .box .rm:active{ background:rgba(0,0,0,.8); }
+
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:24px; }
+  button.dl{
+    border:none; padding:11px 18px; border-radius:11px; font-size:.88rem; font-weight:700;
+    cursor:pointer; color:#fff; background:var(--accent); transition:opacity .15s ease, transform .1s ease;
+  }
+  button.dl:hover{ opacity:.9; }
+  button.dl:active{ transform:scale(.97); }
+  button.dl.alt{ background:var(--accent2); }
+  button.dl:disabled{ opacity:.5; cursor:default; transform:none; }
+
+  .goldnote{
+    text-align:center; color:var(--gold); font-weight:700; font-size:.72rem;
+    margin-top:14px; line-height:1.7;
+  }
+  .hint{ text-align:center; color:var(--muted); font-size:.78rem; margin-top:8px; }
+  input[type=file]{ display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>یک عنوان بنویس، عکس‌ها رو انتخاب کن، خروجی بگیر</h1>
+  <div class="card">
+    <div id="capture-area">
+      <div id="titleBox" contenteditable="true" data-placeholder="عنوان را اینجا بنویس... مثلا My Favorite DC Characters"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="actions">
+      <button class="dl" id="dlJpg">دانلود JPG</button>
+      <button class="dl alt" id="dlPng">دانلود PNG</button>
+      <button class="dl alt" id="dlWebp">دانلود WEBP</button>
+    </div>
+    <div class="goldnote">برای رعایت حقوق سازنده یعنی ترپ، ترجیحا فقط پسر و کاراکتر مرد بگذارید</div>
+    <div class="hint">روی هر کادر کلیک کن تا عکس انتخاب کنی. برای حذف عکس، روی دایره کوچک بالا-چپ کادر بزن.</div>
+  </div>
+</div>
+
+<script>
+const grid = document.getElementById('grid');
+const titleBox = document.getElementById('titleBox');
+
+// keep the contenteditable title truly empty (so the placeholder keeps showing)
+// after the user deletes all text — otherwise a stray <br> stays behind.
+titleBox.addEventListener('input', ()=>{
+  if(titleBox.textContent.trim() === ''){
+    titleBox.innerHTML = '';
+  }
+});
+titleBox.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); titleBox.blur(); }
+});
+
+for(let i=0;i<10;i++){
+  const box = document.createElement('div');
+  box.className = 'box';
+  box.innerHTML = `<span class="plus">+</span><span class="rm">✕</span><input type="file" accept="image/*">`;
+  const input = box.querySelector('input');
+  const rm = box.querySelector('.rm');
+  const plus = box.querySelector('.plus');
+
+  box.addEventListener('click', (e)=>{
+    if(e.target === rm) return;
+    input.click();
+  });
+
+  input.addEventListener('change', ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      plus.style.display = 'none';
+      let img = box.querySelector('img');
+      if(!img){
+        img = document.createElement('img');
+        box.insertBefore(img, box.firstChild);
+      }
+      img.src = ev.target.result;
+      box.classList.add('filled');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  rm.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const img = box.querySelector('img');
+    if(img) img.remove();
+    plus.style.display = '';
+    box.classList.remove('filled');
+    input.value = '';
+  });
+
+  grid.appendChild(box);
+}
+
+const buttons = [
+  document.getElementById('dlJpg'),
+  document.getElementById('dlPng'),
+  document.getElementById('dlWebp')
+];
+
+let downloadsCap = null;
+(async () => {
+  try { downloadsCap = await claude.use('downloads'); } catch(e) { downloadsCap = null; }
+})();
+
+async function download(type, ext){
+  buttons.forEach(b => b.disabled = true);
+  try{
+    const target = document.getElementById('capture-area');
+    const panelColor = getComputedStyle(target).backgroundColor;
+    const canvas = await html2canvas(target, {backgroundColor: panelColor, scale: 2, useCORS: true});
+    const mime = type === 'jpg' ? 'image/jpeg' : type === 'webp' ? 'image/webp' : 'image/png';
+    const blob = await new Promise((resolve)=>{
+      canvas.toBlob((b)=>resolve(b), mime, 0.95);
+    });
+    if(!blob) return;
+
+    if(!downloadsCap){
+      try { downloadsCap = await claude.use('downloads'); } catch(e) { downloadsCap = null; }
+    }
+
+    if(downloadsCap){
+      try{
+        await downloadsCap.save({ filename: 'list.' + ext, data: blob });
+      }catch(err){
+        console.error(err);
+        alert('دانلود انجام نشد. لطفاً دوباره امتحان کن.');
+      }
+    } else {
+      // fallback for environments without the downloads capability
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'list.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+
+document.getElementById('dlJpg').addEventListener('click', ()=>download('jpg','jpg'));
+document.getElementById('dlPng').addEventListener('click', ()=>download('png','png'));
+document.getElementById('dlWebp').addEventListener('click', ()=>download('webp','webp'));
+</script>
+</body>
+</html>
